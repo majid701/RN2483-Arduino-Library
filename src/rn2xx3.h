@@ -148,6 +148,11 @@ class rn2xx3
      */
     void setFrequencyPlan(FREQ_PLAN);
 
+    /*
+     * Returns the last downlink message recevied by the radio
+     */
+    String getLastDownlinkMessage();
+
   private:
     Stream& _serial;
     
@@ -172,6 +177,9 @@ class rn2xx3
 
     //the appskey to use for LoRa WAN
     String _appskey = "0";
+
+    //the last downlink message received
+    String _lastDownlinkMessage = "";
 
     /*
      * Auto configure for either RN2903 or RN2483 module

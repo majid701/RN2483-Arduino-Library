@@ -346,6 +346,15 @@ bool rn2xx3::txCommand(String command, String data, bool shouldEncode)
         // 1. a boolean for confirmed message acks'
         // 2. a boolean for received data
         // 3. a string/char array for the downlink data
+
+        //Partial implementation just saving the received message and making it accessible
+        //through the function getLastDownlinkMessage()
+
+        //extract the downlink message from the receivedData ('mac_rx 1 downlink_data_hex') 
+        _lastDownlinkMessage = receivedData.substring(receivedData.indexOf('1'));
+        _lastDownlinkMessage.trim();
+        _lastDownlinkMessage = base16decode(_lastDownlinkMessage);
+        
         send_success = true;
         return true;
       }
@@ -566,4 +575,8 @@ void rn2xx3::setFrequencyPlan(FREQ_PLAN fp)
       //set 868.1, 868.3 and 868.5
       break;
   }
+}
+
+String rn2xx3::getLastDownlinkMessage(){
+  return _lastDownlinkMessage;
 }
