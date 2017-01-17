@@ -9,10 +9,12 @@
 
 #include "Arduino.h"
 #include "rn2xx3.h"
+#include <EEPROM.h>
 
 extern "C" {
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 }
 
 /*
@@ -36,6 +38,10 @@ void rn2xx3::autobaud()
     _serial.println("sys get ver");
     response = _serial.readStringUntil('\n');
   }
+}
+
+void rn2xx3::addDebugStream(Stream& debug){
+  this->_debug = &debug;
 }
 
 
@@ -78,6 +84,50 @@ String rn2xx3::sysver()
   String ver = _serial.readStringUntil('\n');
   ver.trim();
   return ver;
+}
+
+LoraNodeConfiguration rn2xx3::getConfiguration(){
+  char tempAppEui[APP_EUI_LEN + 1];
+  _appeui.toCharArray(tempAppEui, APP_EUI_LEN);
+  LoraNodeConfiguration config;
+  strcpy(config.appEui, tempAppEui);
+  return config;
+}
+
+void rn2xx3::persistConfiguration(LoraNodeConfiguration config){
+  int address = 0;
+  if (_persistConfig)
+    EEPROM.put(address, config);
+}
+
+void rn2xx3::processDownlinkMessage(String downlink){
+  switch (downlink.charAt(1)){
+
+    //Received new configurations
+    case 'c':
+      if (_configThroughLora == true){ //Check if the new configs should be applied
+
+        downlink = downlink.substring(2);
+        if (downlink.length() == APP_EUI_LEN && downlink != _appeui){ // Increase eeprom memory
+          _serial.flush();
+          bool success = false;
+          while (success == false){
+            success = initOTAA(downlink, _appskey); //Try the configs
+            delay(2000);
+          }
+
+          char tempAppEui[APP_EUI_LEN + 1];
+          downlink.toCharArray(tempAppEui, APP_EUI_LEN + 1);
+          LoraNodeConfiguration config = getConfiguration();
+          strcpy(config.appEui, tempAppEui);
+          if (success == true && _persistConfig == true){ //If configs worked and should be persisted save them
+            persistConfiguration(config);
+          }
+        }
+        _lastDownlinkMessage = ""; //Empty downlink message
+      }
+      break;
+  }
 }
 
 bool rn2xx3::init()
@@ -354,7 +404,9 @@ bool rn2xx3::txCommand(String command, String data, bool shouldEncode)
         _lastDownlinkMessage = receivedData.substring(receivedData.indexOf('1'));
         _lastDownlinkMessage.trim();
         _lastDownlinkMessage = base16decode(_lastDownlinkMessage);
-        
+
+        processDownlinkMessage(_lastDownlinkMessage);
+
         send_success = true;
         return true;
       }
@@ -579,4 +631,25 @@ void rn2xx3::setFrequencyPlan(FREQ_PLAN fp)
 
 String rn2xx3::getLastDownlinkMessage(){
   return _lastDownlinkMessage;
+}
+
+bool rn2xx3::togglePersistedConfiguration(bool enable){
+  _persistConfig = enable;
+  return _persistConfig;
+}
+
+bool rn2xx3::toggleConfigurationChangeThroughLora(bool enable){
+  _configThroughLora = enable;
+  return _configThroughLora;
+}
+
+bool rn2xx3::initOTAAwithPersistedConfiguration(){  
+  int startAddress = 0;
+  LoraNodeConfiguration retreivedConfig;
+  EEPROM.get(startAddress, retreivedConfig);
+  String tempAppEui(retreivedConfig.appEui);
+  if (strlen(retreivedConfig.appEui) == APP_EUI_LEN){
+    return initOTAA(tempAppEui, _appskey);
+  } 
+  else return false;
 }

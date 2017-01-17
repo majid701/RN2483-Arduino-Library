@@ -24,6 +24,12 @@ enum FREQ_PLAN {
   DEFAULT_EU
 };
 
+#define APP_EUI_LEN 16
+
+struct LoraNodeConfiguration {
+    char appEui[APP_EUI_LEN + 1];
+};
+
 class rn2xx3
 {
   public:
@@ -33,6 +39,11 @@ class rn2xx3
      * The serial port should already be initialised when initialising this library.
      */
     rn2xx3(Stream& serial);
+
+    /*
+     * Adds a debug stream from which debug messages from inside the library can be shown
+     */
+    void addDebugStream(Stream& debug);
 
     /*
      * Transmit the correct sequence to the rn2xx3 to trigger its autobauding feature.
@@ -153,9 +164,47 @@ class rn2xx3
      */
     String getLastDownlinkMessage();
 
+    /*
+     * If persisted configurations are enabled they are saved in atmega's eeprom.
+     *
+     * Returns the setted flag value.
+     */
+    bool togglePersistedConfiguration(bool enable);
+
+    /*
+     * Permits to change configuration through lora downlink messages.
+     *
+     * Returns the setted flag value.
+     */
+    bool toggleConfigurationChangeThroughLora(bool enable);
+
+    /*
+     * Initialise the RN2xx3 and join a network using over the air activation.
+     * 
+     * The configurations are retreived from atmega's eeprom. 
+     */
+    bool initOTAAwithPersistedConfiguration();
+
+    /*
+     * Returns the at the moment working configurations.
+     */
+    LoraNodeConfiguration getConfiguration();
+
+    /*
+     * Persist the passed configuration to atmega's eeprom.
+     */
+    void persistConfiguration(LoraNodeConfiguration);
+
+    /*
+     * Internal usage
+     */
+    void processDownlinkMessage(String downlink);
+
   private:
     Stream& _serial;
     
+    Stream* _debug;
+
     RN2xx3_t _moduleType = RN_NA;
 
     //Flags to switch code paths. Default is to use OTAA.
@@ -175,11 +224,18 @@ class rn2xx3
     //the nwkskey to use for LoRa WAN
     String _nwkskey = "0";
 
-    //the appskey to use for LoRa WAN
-    String _appskey = "0";
+    //Hardcoded _appskey to use with persisted configurations
+    String _appskey = "FA971071D1019BE91649331EB6AE869B";
 
     //the last downlink message received
     String _lastDownlinkMessage = "";
+
+    //flag for config change through lora
+    bool _configThroughLora = false;
+
+    //flag for config saving in eeprom
+    bool _persistConfig = false;
+
 
     /*
      * Auto configure for either RN2903 or RN2483 module
