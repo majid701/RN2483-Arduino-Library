@@ -652,3 +652,7 @@ bool rn2xx3::initOTAAwithPersistedConfiguration(){
   } 
   else return false;
 }
+
+void rn2xx3::setAppKey(String appkey){
+  _appskey = appkey;
+}

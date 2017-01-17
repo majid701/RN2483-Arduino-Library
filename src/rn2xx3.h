@@ -200,6 +200,11 @@ class rn2xx3
      */
     void processDownlinkMessage(String downlink);
 
+    /*
+     * Sets the _appskey
+     */
+    void setAppKey(String appkey);
+
   private:
     Stream& _serial;
     
